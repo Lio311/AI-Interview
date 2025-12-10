@@ -464,183 +464,242 @@ def create_final_session_video(recordings_dict):
 
 # --- UI Functions ---
 
+# --- Helper Functions (TTS) ---
+def text_to_speech(text, filename):
+    """Generates TTS audio using OpenAI."""
+    try:
+        response = client.audio.speech.create(
+            model="tts-1",
+            voice="alloy", # Options: alloy, echo, fable, onyx, nova, shimmer
+            input=text
+        )
+        # Use temp dir
+        path = f"temp_recordings/{filename}"
+        response.stream_to_file(path)
+        return path
+    except Exception as e:
+        st.error(f"TTS Error: {e}")
+        return None
+
+# --- UI Functions ---
+
 def main():
-    st.title("AI Video Interview Coach")
-    st.subheader("Practice tough interview questions with video recording, feedback, and downloadable session.")
-    st.markdown("---")
+    st.set_page_config(page_title="AI Video Interview Coach", page_icon="🎥", layout="wide")
+    
+    # Custom CSS for Full Screen Focus
+    st.markdown("""
+    <style>
+        .stApp { margin-top: -50px; }
+        section[data-testid="stSidebar"] { display: none; } 
+    </style>
+    """, unsafe_allow_html=True)
+    
+    phase = st.session_state.interview_phase
 
-    col1, col2 = st.columns([1, 2])
-
-    with col1:
-        st.header("Setup Panel")
+    if phase == "setup":
         render_setup_panel()
-
-    with col2:
-        if st.session_state.interview_phase == "setup":
-            st.info("Please complete the setup on the left to start the interview.")
-        elif st.session_state.interview_phase == "finished":
-            render_finished_screen()
-        else:
-            render_interview_interface()
+    elif phase == "camera_check":
+        render_camera_check()
+    elif phase == "recording" or phase == "feedback":
+        render_interview_interface()
+    elif phase == "finished":
+        render_finished_screen()
 
 def render_setup_panel():
-    st.markdown("### 1. Upload Your CV (PDF)")
-    uploaded_file = st.file_uploader("Upload a single PDF", type=['pdf'], key="cv_uploader")
-    if uploaded_file is not None:
-        if st.session_state.cv_text == "":
-            with st.spinner("Parsing CV..."):
-                text = extract_text_from_pdf(uploaded_file)
-                if text:
-                    st.session_state.cv_text = text
-                    st.success("CV Processed Successfully")
-                    st.text_area("Preview (First 800 chars)", value=text[:800], height=100, disabled=True)
-        else:
-            st.success("CV Processed")
-            st.text_area("Preview (First 800 chars)", value=st.session_state.cv_text[:800], height=100, disabled=True)
+    st.title("AI Interview Coach: Setup 🛠️")
+    st.info("Let's tailor the session to your needs. This screen will disappear once we start.")
     
-    st.markdown("### 2. Paste Job Description")
-    jd_input = st.text_area("Job description", height=200, placeholder="Paste the full job description here...")
-    if jd_input:
-        st.session_state.job_description = jd_input
+    col_up, col_desc = st.columns(2)
+    
+    with col_up:
+        st.markdown("### 1. Upload Your CV (PDF)")
+        uploaded_file = st.file_uploader("Upload a single PDF", type=['pdf'], key="cv_uploader")
+        if uploaded_file is not None:
+             if st.session_state.cv_text == "":
+                with st.spinner("Parsing CV..."):
+                    text = extract_text_from_pdf(uploaded_file)
+                    if text:
+                        st.session_state.cv_text = text
+                        st.success("CV Processed Successfully")
+        
+    with col_desc:
+        st.markdown("### 2. Job Description")
+        jd_input = st.text_area("Paste the Job Description", height=150)
+        if jd_input:
+            st.session_state.job_description = jd_input
 
-    st.markdown("### 3. Start Interview")
+    st.markdown("### 3. Start")
     start_disabled = not (uploaded_file and st.session_state.job_description)
-    if st.button("Start Interview Session", disabled=start_disabled, type="primary"):
+    
+    if st.button("Start Interview Session 🚀", disabled=start_disabled, type="primary", use_container_width=True):
         GEMINI_KEY = get_api_key("GEMINI_API_KEY")
         if not GEMINI_KEY:
-            st.error("Cannot start: GEMINI_API_KEY is missing. Please set it in secrets or .env file.")
+            st.error("Cannot start: GEMINI_API_KEY is missing.")
             return
             
-        with st.spinner("Gemini is generating custom questions..."):
+        with st.spinner("Analyzing profile and generating questions..."):
             custom_questions = generate_interview_questions(st.session_state.cv_text, st.session_state.job_description)
             if custom_questions:
-                full_list = CORE_QUESTIONS + custom_questions
+                full_list = CORE_QUESTIONS[:1] + custom_questions # Mix core and custom
                 st.session_state.questions_list = full_list
-                st.session_state.interview_phase = "recording"
-                st.session_state.current_question_index = 0
+                st.session_state.interview_phase = "camera_check" # NEXT PHASE
                 st.rerun()
             else:
                 st.error("Failed to generate questions. Please try again.")
+
+def render_camera_check():
+    st.title("Camera & Audio Check 📸")
+    st.write("Please ensure you are visible and your microphone is working.")
+    
+    col_cam, col_inst = st.columns([2, 1])
+    
+    with col_cam:
+        webrtc_streamer(
+            key="camera-check",
+            mode=WebRtcMode.SENDRECV,
+            rtc_configuration=RTCConfiguration(
+                {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
+            ),
+            media_stream_constraints={"video": True, "audio": True},
+            async_processing=True,
+        )
+        
+    with col_inst:
+        st.markdown("""
+        **Checklist:**
+        1.  Are you centered in the frame?
+        2.  Is the lighting good?
+        3.  Is your background professional?
+        """)
+        st.markdown("---")
+        if st.button("I'm Ready! Start Question 1 ➡️", type="primary", use_container_width=True):
+            st.session_state.interview_phase = "recording"
+            st.session_state.current_question_index = 0
+            st.rerun()
 
 def render_interview_interface():
     q_idx = st.session_state.current_question_index
     total_q = len(st.session_state.questions_list)
     question_text = st.session_state.questions_list[q_idx]
 
-    # Check phase
-    phase = st.session_state.interview_phase
+    # Generate TTS for Question if not exists
+    q_audio_key = f"q_audio_{q_idx}"
+    if q_audio_key not in st.session_state:
+        # Generate audio
+        path = text_to_speech(f"Question {q_idx + 1}: {question_text}", f"q_{q_idx}.mp3")
+        st.session_state[q_audio_key] = path
+    
+    # Header
+    st.progress((q_idx) / total_q, text=f"Question {q_idx + 1} of {total_q}")
+    st.title(f"🗣️ {question_text}")
+    
+    # Auto-play Question Audio (Only once ideally, using key prevents re-render loop if controlled)
+    if st.session_state.interview_phase == "recording" and st.session_state.get('q_active_state', 'ready') == 'ready':
+         if st.session_state[q_audio_key]:
+             st.audio(st.session_state[q_audio_key], autoplay=True)
 
+    phase = st.session_state.interview_phase
+    
+    # ---------------- RECORDING PHASE ----------------
     if phase == "recording":
-        col_vid, col_controls = st.columns([2, 1])
-        with col_vid:
+        col_vid_main, col_controls = st.columns([2, 1])
+        with col_vid_main:
             ctx = webrtc_streamer(
                 key=f"interview-q-{q_idx}",
                 mode=WebRtcMode.SENDRECV,
-                rtc_configuration=RTCConfiguration(
-                    {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
-                ),
+                rtc_configuration=RTCConfiguration({"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}),
                 media_stream_constraints={"video": True, "audio": True},
                 video_frame_callback=video_frame_callback,
                 audio_frame_callback=audio_frame_callback,
                 async_processing=True,
             )
-            
+        
         with col_controls:
-            st.info(f"Question {q_idx + 1} of {total_q}")
-            st.markdown(f"#### {question_text}")
-            
-            if 'q_active_state' not in st.session_state:
-                 st.session_state.q_active_state = 'ready' 
+            st.markdown("### Controls")
+            if 'q_active_state' not in st.session_state: st.session_state.q_active_state = 'ready'
             
             if ctx.state.playing:
                 if st.session_state.q_active_state == 'ready':
-                    st.info("Get comfortable...")
-                    if st.button("Start Recording Answer", type="primary"):
-                        base_filename = f"temp_recordings/q_{q_idx}_{int(time.time())}"
-                        vid_path = f"{base_filename}.mp4"
-                        aud_path = f"{base_filename}.wav"
-                        final_path = f"{base_filename}_merged.mp4"
-                        
-                        manager.start_recording(vid_path, aud_path, final_path)
-                        st.session_state.current_recording = {
-                            "video": vid_path, "audio": aud_path, "final": final_path
-                        }
-                        st.session_state.q_active_state = 'recording'
-                        st.rerun()
+                    if st.button("🔴 Start Recording Answer", type="primary", use_container_width=True):
+                         base_filename = f"temp_recordings/q_{q_idx}_{int(time.time())}"
+                         vid_path = f"{base_filename}.mp4"
+                         aud_path = f"{base_filename}.wav"
+                         final_path = f"{base_filename}_merged.mp4"
+                         manager.start_recording(vid_path, aud_path, final_path)
+                         st.session_state.current_recording = {"video": vid_path, "audio": aud_path, "final": final_path}
+                         st.session_state.q_active_state = 'recording'
+                         st.rerun()
                 elif st.session_state.q_active_state == 'recording':
-                    st.error("🔴 Recording in progress...")
-                    if st.button("Finish Answer", type="primary"):
-                        manager.stop_recording()
-                        st.session_state.q_active_state = 'ready'
-                        if q_idx not in st.session_state.recordings:
-                             st.session_state.recordings[q_idx] = []
-                        st.session_state.recordings[q_idx].append(st.session_state.current_recording)
-                        st.session_state.interview_phase = "feedback"
-                        st.rerun()
+                    st.error("Recording... (Speak clearly!)")
+                    if st.button("⏹️ Finish Answer", type="primary", use_container_width=True):
+                         manager.stop_recording()
+                         st.session_state.q_active_state = 'ready'
+                         if q_idx not in st.session_state.recordings: st.session_state.recordings[q_idx] = []
+                         st.session_state.recordings[q_idx].append(st.session_state.current_recording)
+                         st.session_state.interview_phase = "feedback"
+                         st.rerun()
             else:
-                st.warning("Please allow camera access and click 'Start' on the video player.")
+                st.warning("Waiting for camera...")
 
+    # ---------------- FEEDBACK PHASE ----------------
     elif phase == "feedback":
-        st.header("Feedback Analysis")
-        st.write(f"Question: {question_text}")
-        
+        # Process logic (Generate Feedback)
         current_rec_list = st.session_state.recordings.get(q_idx, [])
         current_rec_data = current_rec_list[-1]
-        attempt_idx = len(current_rec_list) - 1
-        key = f"{q_idx}_{attempt_idx}"
+        key = f"{q_idx}_{len(current_rec_list)-1}"
         
         if 'processing_done' not in current_rec_data:
-             with st.spinner("Processing Answer..."):
-                 st.text("Merging Media...")
+             with st.spinner("Coach is analyzing your answer (Content, Voice, Video)..."):
                  merge_audio_video(current_rec_data['video'], current_rec_data['audio'], current_rec_data['final'])
-                 
-                 st.text("Transcribing (OpenAI Whisper)...")
                  transcript = transcribe_audio(current_rec_data['audio'])
                  st.session_state.transcripts[key] = transcript
                  
-                 st.text("Analyzing (Gemini Video & Audio)...")
                  analysis = analyze_answer_with_gemini(
-                     transcript, 
-                     st.session_state.cv_text, 
-                     st.session_state.job_description, 
-                     question_text,
-                     video_path=current_rec_data['final']
+                     transcript, st.session_state.cv_text, st.session_state.job_description, question_text, video_path=current_rec_data['final']
                  )
                  st.session_state.analysis_data[key] = analysis
                  
-                 st.text("Generating Coach Response (OpenAI GPT)...")
-                 coach_response = generate_coach_response_with_gpt(analysis, transcript, question_text)
-                 st.session_state.feedback[key] = coach_response
+                 coach_text = generate_coach_response_with_gpt(analysis, transcript, question_text)
+                 st.session_state.feedback[key] = coach_text
+                 
+                 # NEW: Generate Audio for Coach Feedback
+                 tts_path = text_to_speech(coach_text, f"feedback_{key}.mp3")
+                 st.session_state.feedback_audio = tts_path
                  
                  current_rec_data['processing_done'] = True
                  st.rerun()
+
+        # Display Feedback
+        col_feedback_left, col_feedback_right = st.columns([1, 1])
         
-        col_chat, col_vid_review = st.columns(2)
-        transcript = st.session_state.transcripts.get(key, "")
-        feedback_text = st.session_state.feedback.get(key, "")
-        analysis = st.session_state.analysis_data.get(key, {})
-        
-        with col_vid_review:
-             st.markdown("### Your Recording")
+        with col_feedback_left:
+             st.markdown("### 📹 Your Answer")
              if os.path.exists(current_rec_data['final']):
                 st.video(current_rec_data['final'])
-             else:
-                st.error("Video file not found. Merge might have failed.")
              
-        with col_chat:
              st.markdown("### 📝 Transcript")
-             st.info(f'"{transcript}"')
+             st.info(f'"{st.session_state.transcripts.get(key, "")}"')
+
+        with col_feedback_right:
+             st.markdown("### Coach Feedback")
              
-             st.markdown("### 🤖 Coach Feedback")
-             st.markdown(feedback_text)
+             # PLAY AUDIO
+             if hasattr(st.session_state, 'feedback_audio') and st.session_state.feedback_audio:
+                 st.audio(st.session_state.feedback_audio, autoplay=True)
              
-             is_passed = analysis.get("is_strong_enough", False)
+             feedback_text = st.session_state.feedback.get(key, "")
+             st.write(feedback_text)
              
+             # Expandable deeper analysis
+             analysis = st.session_state.analysis_data.get(key, {})
+             with st.expander("View Body Language & Delivery Analysis"):
+                 st.json(analysis)
+
              st.write("---")
-             col_next, col_retry = st.columns(2)
-             
+             is_passed = analysis.get("is_strong_enough", False)
              if is_passed:
-                 if col_next.button("Next Question ➡️", type="primary"):
+                 st.success("✅ Good Answer! Ready for next.")
+                 if st.button("Next Question ➡️", type="primary"):
                       st.session_state.current_question_index += 1
                       if st.session_state.current_question_index >= len(st.session_state.questions_list):
                           st.session_state.interview_phase = "finished"
@@ -648,11 +707,11 @@ def render_interview_interface():
                           st.session_state.interview_phase = "recording"
                       st.rerun()
              else:
-                 st.warning("The Coach suggests you try again.")
-                 if col_retry.button("Try Question Again 🔄"):
+                 st.warning("⚠️ Improvement Needed.")
+                 if st.button("Try Again 🔄"):
                       st.session_state.interview_phase = "recording"
                       st.rerun()
-                 if col_next.button("Skip to Next (Force)"):
+                 if st.button("Skip Anyway (Force)"):
                       st.session_state.current_question_index += 1
                       if st.session_state.current_question_index >= len(st.session_state.questions_list):
                           st.session_state.interview_phase = "finished"
@@ -661,12 +720,11 @@ def render_interview_interface():
                       st.rerun()
 
 def render_finished_screen():
-    st.header("🎉 Interview Complete!")
     st.balloons()
-    st.success("You have completed all questions!")
+    st.title("🎉 Interview Session Complete")
     
     if 'summary_generated' not in st.session_state:
-        with st.spinner("Gemini is generating your Final Report..."):
+        with st.spinner("Compiling final report and video..."):
             vid_path = create_final_session_video(st.session_state.recordings)
             st.session_state.final_video_path = vid_path
             
@@ -674,21 +732,20 @@ def render_finished_screen():
             st.session_state.final_report = report
             st.session_state.summary_generated = True
     
-    col_res1, col_res2 = st.columns(2)
-    with col_res1:
-        st.markdown("### Session Report")
-        st.text_area("Report", st.session_state.final_report, height=400)
-        st.download_button("Download Report (Text)", st.session_state.final_report, "interview_report.txt", "text/plain")
-        
-    with col_res2:
-        st.markdown("### Full Interview Video")
-        if st.session_state.final_video_path and os.path.exists(st.session_state.final_video_path):
-            st.video(st.session_state.final_video_path)
+    st.success("You made it! Here is your comprehensive performance package.")
+    
+    col_dl1, col_dl2 = st.columns(2)
+    with col_dl1:
+        st.markdown("### 📄 Review Report")
+        st.download_button("Download Full PDF Report", st.session_state.final_report, "report.txt")
+        st.text_area("Preview", st.session_state.final_report, height=300)
+    
+    with col_dl2:
+        st.markdown("### 🎬 Full Session Video")
+        if st.session_state.final_video_path:
             with open(st.session_state.final_video_path, "rb") as f:
-                st.download_button("Download Session Video (MP4)", f, "interview_session.mp4", "video/mp4")
-        else:
-            st.warning("Could not generate full video (possibly no recordings).")
-
+                st.download_button("Download Video (MP4)", f, "full_interview.mp4")
+            st.video(st.session_state.final_video_path)
 
 if __name__ == "__main__":
     main()
