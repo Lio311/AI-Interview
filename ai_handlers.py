@@ -52,22 +52,22 @@ def transcribe_audio(audio_path):
         return f"Error transcribing: {e}"
 
 def call_gemini_fallback(inputs, generation_config=None):
-    """Attempts cascade: 2.5 Preview -> 1.5 Flash -> 1.5 Pro -> Fail with Debug"""
+    """Attempts cascade: 2.5 Preview -> 2.0 Flash (Stable) -> Flash Latest -> Fail"""
     
-    # 1. Try Premium/Preview Model
+    # 1. Try Premium/Preview Model (Strict Quota)
     try:
         model = genai.GenerativeModel("gemini-2.5-flash-preview-09-2025")
         return model.generate_content(inputs, generation_config=generation_config)
     except Exception as e1:
-        # 2. Try Standard Flash
+        # 2. Try Stable 2.0 Flash (Confirmed Available)
         try:
-             model_fallback = genai.GenerativeModel("gemini-1.5-flash")
+             model_fallback = genai.GenerativeModel("gemini-2.0-flash-001")
              return model_fallback.generate_content(inputs, generation_config=generation_config)
         except Exception as e2:
-            # 3. Try Pro (Last Resort)
+            # 3. Try Generic Latest Alias (Last Resort)
             try:
-                model_pro = genai.GenerativeModel("gemini-1.5-pro")
-                return model_pro.generate_content(inputs, generation_config=generation_config)
+                model_last = genai.GenerativeModel("gemini-flash-latest")
+                return model_last.generate_content(inputs, generation_config=generation_config)
             except Exception as e3:
                 # 4. Critical Failure - List Available Models for Debugging
                 try:
