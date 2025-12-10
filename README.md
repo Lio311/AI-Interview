@@ -2,7 +2,7 @@
 
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://ai-interview-practice.streamlit.app/)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
-[![Gemini](https://img.shields.io/badge/Google%20AI-Gemini%202.5-orange)](https://deepmind.google/technologies/gemini/)
+[![Gemini](https://img.shields.io/badge/Google%20AI-Gemini%201.5-orange)](https://deepmind.google/technologies/gemini/)
 [![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4o-green)](https://openai.com/)
 
 An advanced **Hybrid AI** interview simulator that combines **Google Gemini** (for deep multimodal analysis) and **OpenAI GPT-4o** (for professional conversational roleplay).
@@ -45,7 +45,7 @@ This application doesn't just "listen" to your answers—it **watches** you, ana
 
 ### 🧠 Hybrid AI Architecture
 The system leverages the best of both worlds:
-- **Google Gemini 2.5 Flash**: Acts as the **Analytical Engine**. It parses your CV, generates technical questions, and performs deep multimodal analysis of your video and audio.
+- **Google Gemini 1.5 Flash**: Acts as the **Analytical Engine**. It parses your CV, generates technical questions, and performs deep multimodal analysis of your video and audio.
 - **OpenAI GPT-4o**: Acts as the **Interviewer Persona**. It takes the raw data from Gemini and delivers it in a human-like, professional, conversational tone.
 
 ### 👁️ Multimodal Body Language Analysis
@@ -64,11 +64,14 @@ Unlike standard voice assistants, this coach **sees** you via your webcam:
 
 ```
 ai_interview_coach/
-├── app.py                  # Main Hybrid-AI Application
+├── app.py                  # Main Application Entry Point
+├── ai_handlers.py          # AI Logic (Gemini/OpenAI)
+├── media_handlers.py       # Audio/Video Processing
+├── utils.py                # Helper Functions
 ├── requirements.txt        # Python dependencies
 ├── packages.txt            # System dependencies (ffmpeg for cloud)
-├── .gitignore              # Security rules (excludes venv/.env)
-└── README.md              # Project documentation
+├── .gitignore              # Security rules
+└── README.md               # Project documentation
 ```
 
 ---
@@ -78,11 +81,11 @@ ai_interview_coach/
 1.  **Setup Phase**:
     *   Upload your **CV (PDF)**.
     *   Paste the **Job Description**.
-    *   The AI generates 10 tailored technical questions.
+    *   The AI generates 5-7 tailored technical questions.
 
 2.  **Interview Phase**:
-    *   The AI asks a question.
-    *   You record your answer via webcam.
+    *   **Auto-Connect**: Camera connects automatically.
+    *   **Auto-Flow**: The AI reads the question, and you record your answer.
     *   **Real-time Analysis**: 
         *   Gemini checks your content (STAR method), delivery (Monotony/Energy), and Body Language.
         *   GPT-4o provides immediate verbal feedback.
@@ -96,7 +99,7 @@ ai_interview_coach/
 ## 🛠️ Technical Stack
 
 - **Frontend**: Streamlit
-- **Analysis**: Google Gemini 2.5 Flash (Multimodal)
+- **Analysis**: Google Gemini 1.5 Flash (Multimodal)
 - **Conversation**: OpenAI GPT-4o
 - **Video Processing**: Streamlit WebRTC, MoviePy
 - **Audio Processing**: OpenAI Whisper (STT)
@@ -135,9 +138,10 @@ This app is optimized for **Streamlit Community Cloud**.
 - **Refactor**: Split responsibilities between Gemini (Analysis) and OpenAI (Talk).
 - **Vision**: Added video file upload for body language analysis.
 - **Security**: Added support for Streamlit Secrets.
+- **UI**: Added "Laptop Friendly" mode (Auto-Cam, No Emojis, Auto-Start).
 
 <div align="center">
 
-**Current Model: Gemini 2.5 Flash + GPT-4o**
+**Current Model: Gemini 1.5 Flash + GPT-4o**
 
 </div>
