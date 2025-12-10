@@ -99,7 +99,7 @@ ai_interview_coach/
 ## 🛠️ Technical Stack
 
 - **Frontend**: Streamlit
-- **Analysis**: Google Gemini 1.5 Flash (Multimodal)
+- **Analysis**: Google Gemini 2.5 Flash (Multimodal)
 - **Conversation**: OpenAI GPT-4o
 - **Video Processing**: Streamlit WebRTC, MoviePy
 - **Audio Processing**: OpenAI Whisper (STT)
@@ -142,6 +142,6 @@ This app is optimized for **Streamlit Community Cloud**.
 
 <div align="center">
 
-**Current Model: Gemini 1.5 Flash + GPT-4o**
+**Current Model: Gemini 2.5 Flash + GPT-4o**
 
 </div>
