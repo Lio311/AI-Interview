@@ -52,17 +52,30 @@ def transcribe_audio(audio_path):
         return f"Error transcribing: {e}"
 
 def call_gemini_fallback(inputs, generation_config=None):
-    """Attempts to use Gemini 2.5, falls back to 1.5-Flash on failure."""
+    """Attempts cascade: 2.5 Preview -> 1.5 Flash -> 1.5 Pro -> Fail with Debug"""
+    
+    # 1. Try Premium/Preview Model
     try:
         model = genai.GenerativeModel("gemini-2.5-flash-preview-09-2025")
         return model.generate_content(inputs, generation_config=generation_config)
-    except Exception as e:
-        print(f"Gemini 2.5 Error: {e}. Falling back to 1.5.")
+    except Exception as e1:
+        # 2. Try Standard Flash
         try:
-             model_fallback = genai.GenerativeModel("gemini-1.5-flash-001")
+             model_fallback = genai.GenerativeModel("gemini-1.5-flash")
              return model_fallback.generate_content(inputs, generation_config=generation_config)
         except Exception as e2:
-             raise e2
+            # 3. Try Pro (Last Resort)
+            try:
+                model_pro = genai.GenerativeModel("gemini-1.5-pro")
+                return model_pro.generate_content(inputs, generation_config=generation_config)
+            except Exception as e3:
+                # 4. Critical Failure - List Available Models for Debugging
+                try:
+                    available = [m.name for m in genai.list_models()]
+                    st.error(f"All models failed. Available models: {available}")
+                except:
+                    st.error("Could not list models.")
+                raise e3
 
 def generate_interview_questions(cv_text, job_description):
     prompt = f"""
