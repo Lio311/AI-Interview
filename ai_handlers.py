@@ -52,7 +52,7 @@ def transcribe_audio(audio_path):
         return f"Error transcribing: {e}"
 
 def generate_interview_questions(cv_text, job_description):
-    model = genai.GenerativeModel("gemini-2.5-flash-preview-09-2025")
+    model = genai.GenerativeModel("gemini-1.5-flash")
     prompt = f"""
     You are an expert technical interviewer.
     Based on the following Candidate CV and Job Description, generate 5 distinct, challenging, role-specific interview questions.
@@ -81,7 +81,7 @@ def generate_interview_questions(cv_text, job_description):
         return []
 
 def analyze_answer_with_gemini(transcript, cv_text, job_desc, question, video_path=None):
-    model = genai.GenerativeModel("gemini-2.5-flash-preview-09-2025")
+    model = genai.GenerativeModel("gemini-1.5-flash")
     
     # Upload video if provided
     video_file = None
@@ -174,7 +174,7 @@ def generate_coach_response_with_gpt(analysis_json, transcript, question):
         return f"Error generating feedback: {e}"
 
 def generate_session_report_with_gemini(transcripts, analyses):
-    model = genai.GenerativeModel("gemini-2.5-flash-preview-09-2025")
+    model = genai.GenerativeModel("gemini-1.5-flash")
     
     data_str = ""
     for k, v in transcripts.items():
