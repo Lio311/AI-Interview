@@ -43,18 +43,23 @@ def init_session_state():
 def main():
     st.set_page_config(page_title="AI Video Interview Coach", layout="wide")
     
-    # Custom CSS for Full Screen Focus, No Sidebar, and Centering
+    # Custom CSS for Laptop Focus (Compact & Centered)
     st.markdown("""
     <style>
-        .stApp { margin-top: -50px; }
+        .stApp { margin-top: -60px; }
         section[data-testid="stSidebar"] { display: none; } 
+        /* Limit width for laptop feel */
+        .block-container { max-width: 900px; padding-top: 2rem; padding-bottom: 2rem; }
         /* Center video and limit size */
         div[data-testid="stVerticalBlock"] > div:has(div.stVideo) { display: flex; justify-content: center; }
         video { 
-            width: 400px !important; 
+            width: 280px !important; 
             height: auto !important; 
             border-radius: 10px;
         }
+        h1 { font-size: 1.8rem !important; }
+        h2 { font-size: 1.5rem !important; }
+        h3 { font-size: 1.2rem !important; }
     </style>
     """, unsafe_allow_html=True)
     
@@ -71,7 +76,7 @@ def main():
         return
 
     # 2. PROMINENT TOP-CENTER CAMERA (For all other phases)
-    st.markdown("<h2 style='text-align: center;'>📹 Interview Cam</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center;'>Interview Camera</h2>", unsafe_allow_html=True)
 
     # Persistent Streamer
     # We use a key that doesn't change to keep connection alive
@@ -81,13 +86,14 @@ def main():
         rtc_configuration=RTCConfiguration(
             {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
         ),
-        media_stream_constraints={"video": True, "audio": True},
+        media_stream_constraints={"video": {"width": 320, "height": 240}, "audio": True},
         video_frame_callback=video_frame_callback,
         audio_frame_callback=audio_frame_callback,
         async_processing=True,
+        desired_playing_state=True, # Auto-start camera
         video_html_attrs={
-            "style": {"width": "400px", "margin": "0 auto", "border-radius": "10px"},
-            "muted": True  # Fixes the echo issue!
+            "style": {"width": "280px", "margin": "0 auto", "border-radius": "10px"},
+            "muted": True 
         }
     )
     
@@ -150,6 +156,7 @@ def render_camera_check(ctx):
     st.markdown("---")
     st.info("Check your camera above. When ready, click Start.")
     
+    # Auto-detect camera ready state
     if ctx.state.playing:
         if st.button("I'm Ready! Start Interview", type="primary", use_container_width=True):
             st.session_state.interview_phase = "recording"
@@ -190,24 +197,36 @@ def render_recording_phase(ctx):
              manager.start_recording(vid_path, aud_path, final_path)
              st.session_state.current_recording = {"video": vid_path, "audio": aud_path, "final": final_path}
              
+             # Capture Start Time for Min Duration Check
+             st.session_state.recording_start_time = time.time()
+             
              # ADVANCE STATE
              st.session_state.q_active_state = 'recording'
              st.rerun() 
              
         elif st.session_state.get('q_active_state') == 'recording':
-            st.error("🔴 Recording in progress... (Speak clearly!)")
+            # Visual Timer (Mock)
+            elapsed = 0
+            if 'recording_start_time' in st.session_state:
+                elapsed = int(time.time() - st.session_state.recording_start_time)
+            
+            st.info(f"Recording... {elapsed}s")
             
             # Use columns to center the button
             col1, col2, col3 = st.columns([1, 2, 1])
             with col2:
-                if st.button("⏹️ Stop Recording & JSON Report", type="primary", use_container_width=True, key=f"stop_btn_{q_idx}"):
-                    manager.stop_recording()
-                    st.session_state.q_active_state = 'finished'
-                    if q_idx not in st.session_state.recordings: 
-                        st.session_state.recordings[q_idx] = []
-                    st.session_state.recordings[q_idx].append(st.session_state.current_recording)
-                    st.session_state.interview_phase = "feedback"
-                    st.rerun()
+                if st.button("Stop Recording & Report", type="primary", use_container_width=True, key=f"stop_btn_{q_idx}"):
+                    # Min Duration Check (25s)
+                    if elapsed < 25:
+                        st.warning(f"Please speak for at least 25 seconds. (Currently: {elapsed}s)")
+                    else:
+                        manager.stop_recording()
+                        st.session_state.q_active_state = 'finished'
+                        if q_idx not in st.session_state.recordings: 
+                            st.session_state.recordings[q_idx] = []
+                        st.session_state.recordings[q_idx].append(st.session_state.current_recording)
+                        st.session_state.interview_phase = "feedback"
+                        st.rerun()
     else:
         st.warning("Camera disconnected. Please reconnect.")
 
@@ -237,7 +256,7 @@ def render_feedback_phase(ctx):
              st.rerun()
              
     # Display Feedback
-    st.markdown("### 🤖 Coach Feedback")
+    st.markdown("### Coach Feedback")
     
     # Auto-Play Feedback Audio
     if hasattr(st.session_state, 'feedback_audio') and st.session_state.feedback_audio:
@@ -246,19 +265,40 @@ def render_feedback_phase(ctx):
     feedback_text = st.session_state.feedback.get(key, "")
     st.success(feedback_text)
     
-    # Transcript & Details
-    with st.expander("View Transcript"):
-        st.write(st.session_state.transcripts.get(key, ""))
-        
+    # Clean Analysis Display (No JSON)
     analysis = st.session_state.analysis_data.get(key, {})
-    with st.expander("Detailed Analysis (Body Language & Content)"):
-        st.json(analysis)
+    
+    with st.expander("Evaluation Details"):
+        col_s, col_w = st.columns(2)
+        with col_s:
+            st.markdown("**Strengths**")
+            for p in analysis.get('strong_points', []):
+                st.write(f"- {p}")
+        with col_w:
+            st.markdown("**Areas for Improvement**")
+            for p in analysis.get('weak_points', []):
+                st.write(f"- {p}")
+        
+        st.markdown("---")
+        st.markdown("**Body Language & Delivery**")
+        del_an = analysis.get('delivery_analysis', {})
+        bl_an = analysis.get('body_language', {})
+        
+        # Format as simple text
+        st.write(f"Eye Contact: {bl_an.get('eye_contact', 'N/A')}")
+        st.write(f"Posture: {bl_an.get('posture', 'N/A')}")
+        if del_an.get('monotonic'): st.write("- Voice was monotonic.")
+        if del_an.get('low_energy'): st.write("- Energy level seemed low.")
+        
+    # Transcript (Hidden deeper or renamed)
+    with st.expander("View My Answer Text"):
+        st.caption(st.session_state.transcripts.get(key, ""))
         
     # Controls
     st.write("---")
     col_next, col_retry = st.columns(2)
     
-    if col_next.button("Next Question ➡️", type="primary", use_container_width=True):
+    if col_next.button("Next Question", type="primary", use_container_width=True):
         st.session_state.current_question_index += 1
         if st.session_state.current_question_index >= len(st.session_state.questions_list):
             st.session_state.interview_phase = "finished"
@@ -267,7 +307,7 @@ def render_feedback_phase(ctx):
             st.session_state.q_active_state = 'ready_to_start' # Reset auto-start for next Q
         st.rerun()
         
-    if col_retry.button("Try Again 🔄", use_container_width=True):
+    if col_retry.button("Try Again", use_container_width=True):
         st.session_state.interview_phase = "recording"
         st.session_state.q_active_state = 'ready_to_start'
         st.rerun()
