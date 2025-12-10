@@ -58,6 +58,21 @@ def main():
     </style>
     """, unsafe_allow_html=True)
     
+    # Init Logic
+    os.makedirs("temp_recordings", exist_ok=True)
+    init_session_state()
+    setup_ai_clients()
+    
+    phase = st.session_state.interview_phase
+
+    # 1. SETUP PHASE (No Camera)
+    if phase == "setup":
+        render_setup_panel()
+        return
+
+    # 2. PROMINENT TOP-CENTER CAMERA (For all other phases)
+    st.markdown("<h2 style='text-align: center;'>📹 Interview Cam</h2>", unsafe_allow_html=True)
+
     # Persistent Streamer
     # We use a key that doesn't change to keep connection alive
     ctx = webrtc_streamer(
