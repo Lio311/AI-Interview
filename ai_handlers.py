@@ -59,7 +59,7 @@ def call_gemini_fallback(inputs, generation_config=None):
     except Exception as e:
         print(f"Gemini 2.5 Error: {e}. Falling back to 1.5.")
         try:
-             model_fallback = genai.GenerativeModel("gemini-1.5-flash")
+             model_fallback = genai.GenerativeModel("gemini-1.5-flash-001")
              return model_fallback.generate_content(inputs, generation_config=generation_config)
         except Exception as e2:
              raise e2
