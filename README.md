@@ -1,6 +1,6 @@
 # 🎥 AI Video Interview Coach
 
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://streamlit.io)
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)]([https://streamlit.io](https://ai-interview-practice.streamlit.app/))
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![Gemini](https://img.shields.io/badge/Google%20AI-Gemini%202.5-orange)](https://deepmind.google/technologies/gemini/)
 [![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4o-green)](https://openai.com/)
@@ -141,3 +141,4 @@ This app is optimized for **Streamlit Community Cloud**.
 **Current Model: Gemini 2.5 Flash + GPT-4o**
 
 </div>
+
