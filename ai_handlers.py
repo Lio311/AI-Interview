@@ -52,29 +52,30 @@ def transcribe_audio(audio_path):
         return f"Error transcribing: {e}"
 
 def call_gemini_fallback(inputs, generation_config=None):
-    """Attempts cascade: 2.5 Preview -> 2.0 Flash (Stable) -> Flash Latest -> Fail"""
+    """Attempts cascade with verbose error logging."""
     
-    # 1. Try Premium/Preview Model (Strict Quota)
+    # 1. Try Premium/Preview (Strict Quota)
     try:
         model = genai.GenerativeModel("gemini-2.5-flash-preview-09-2025")
         return model.generate_content(inputs, generation_config=generation_config)
     except Exception as e1:
-        # 2. Try Stable 2.0 Flash (Confirmed Available)
+        st.warning(f"⚠️ Gemini 2.5 Preview failed: {e1}")
+        
+        # 2. Try Stable 2.0 Flash
         try:
+             st.info("🔄 Retrying with Gemini 2.0 Flash...")
              model_fallback = genai.GenerativeModel("gemini-2.0-flash-001")
              return model_fallback.generate_content(inputs, generation_config=generation_config)
         except Exception as e2:
-            # 3. Try Generic Latest Alias (Last Resort)
+            st.warning(f"⚠️ Gemini 2.0 Flash failed: {e2}")
+            
+            # 3. Try 2.0 Flash Lite (Very likely to work)
             try:
-                model_last = genai.GenerativeModel("gemini-flash-latest")
-                return model_last.generate_content(inputs, generation_config=generation_config)
+                st.info("🔄 Retrying with Gemini 2.0 Flash Lite...")
+                model_lite = genai.GenerativeModel("gemini-2.0-flash-lite-preview-02-05")
+                return model_lite.generate_content(inputs, generation_config=generation_config)
             except Exception as e3:
-                # 4. Critical Failure - List Available Models for Debugging
-                try:
-                    available = [m.name for m in genai.list_models()]
-                    st.error(f"All models failed. Available models: {available}")
-                except:
-                    st.error("Could not list models.")
+                st.error(f"❌ All fallback models failed. Last error: {e3}")
                 raise e3
 
 def generate_interview_questions(cv_text, job_description):
