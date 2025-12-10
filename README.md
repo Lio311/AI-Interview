@@ -1,50 +1,143 @@
-# AI Video Interview Coach 🎥
+# 🎥 AI Video Interview Coach
 
-A "Tough but Fair" AI Interview Coach that uses **Google Gemini** for deep analysis (CV, Audio, Video, Body Language) and **OpenAI GPT-4o** for the conversational persona.
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://streamlit.io)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![Gemini](https://img.shields.io/badge/Google%20AI-Gemini%202.5-orange)](https://deepmind.google/technologies/gemini/)
+[![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4o-green)](https://openai.com/)
 
-## Features
-- **Hybrid AI Architecture**: 
-  - **Gemini 2.5 Flash**: Analyzing CVs, Video Body Language (Eye Contact, Posture), and Vocal Tone.
-  - **OpenAI GPT-4o**: Acts as the conversational interviewer.
-- **Real-time Video Recording**: Record answers directly in the browser.
-- **Multimodal Feedback**: Gets feedback on *what* you said and *how* you looked saying it.
-- **Final Report**: Generates a detailed PDF-ready summary and a concatenated video of the session.
+An advanced **Hybrid AI** interview simulator that combines **Google Gemini** (for deep multimodal analysis) and **OpenAI GPT-4o** (for professional conversational roleplay).
 
-## Installation (Local)
+This application doesn't just "listen" to your answers—it **watches** you, analyzing your body language, eye contact, and vocal energy to provide "tough but fair" executive-level feedback.
 
-1.  Clone the repository.
-2.  Install dependencies:
+---
+
+## 🚀 Quick Start
+
+### Local Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/your-username/ai-interview-coach.git
+   cd ai-interview-coach
+   ```
+
+2. **Install dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
+   *Note: Requires `ffmpeg` installed on your system.*
+
+3. **Set up API Keys**
+   Create a `.env` file or export variables:
+   ```bash
+   export OPENAI_API_KEY="sk-..."
+   export GEMINI_API_KEY="AIza..."
+   ```
+
+4. **Run the application**
+   ```bash
+   streamlit run app.py
+   ```
+
+---
+
+## 🌟 Key Features
+
+### 🧠 Hybrid AI Architecture
+The system leverages the best of both worlds:
+- **Google Gemini 2.5 Flash**: Acts as the **Analytical Engine**. It parses your CV, generates technical questions, and performs deep multimodal analysis of your video and audio.
+- **OpenAI GPT-4o**: Acts as the **Interviewer Persona**. It takes the raw data from Gemini and delivers it in a human-like, professional, conversational tone.
+
+### 👁️ Multimodal Body Language Analysis
+Unlike standard voice assistants, this coach **sees** you via your webcam:
+- **Eye Contact**: Detects if you are looking at the camera or avoiding gaze.
+- **Posture & Gestures**: Identifies slouching, fidgeting, or distracting hand movements.
+- **Facial Expressions**: Analyzes smiles, stress cues, and engagement levels.
+
+### 📊 Full Session Artifacts
+- **Concatenated Video**: Automatically merges your entire session into a single MP4 file.
+- **Detailed Report**: Generates a comprehensive text report with scores, strengths, and actionable drills.
+
+---
+
+## 📁 Project Structure
+
+```
+ai_interview_coach/
+├── app.py                  # Main Hybrid-AI Application
+├── requirements.txt        # Python dependencies
+├── packages.txt            # System dependencies (ffmpeg for cloud)
+├── .gitignore              # Security rules (excludes venv/.env)
+└── README.md              # Project documentation
+```
+
+---
+
+## 🎯 How It Works
+
+1.  **Setup Phase**:
+    *   Upload your **CV (PDF)**.
+    *   Paste the **Job Description**.
+    *   The AI generates 10 tailored technical questions.
+
+2.  **Interview Phase**:
+    *   The AI asks a question.
+    *   You record your answer via webcam.
+    *   **Real-time Analysis**: 
+        *   Gemini checks your content (STAR method), delivery (Monotony/Energy), and Body Language.
+        *   GPT-4o provides immediate verbal feedback.
+
+3.  **Review Phase**:
+    *   Receive a final **Performance Report**.
+    *   Download the **Full Session Video**.
+
+---
+
+## 🛠️ Technical Stack
+
+- **Frontend**: Streamlit
+- **Analysis**: Google Gemini 2.5 Flash (Multimodal)
+- **Conversation**: OpenAI GPT-4o
+- **Video Processing**: Streamlit WebRTC, MoviePy
+- **Audio Processing**: OpenAI Whisper (STT)
+
+---
+
+## 🚢 Deployment (Streamlit Cloud)
+
+This app is optimized for **Streamlit Community Cloud**.
+
+1.  **Push to GitHub**:
     ```bash
-    pip install -r requirements.txt
-    ```
-    *Note: You also need `ffmpeg` installed on your system.*
-
-3.  Set up environment variables in a `.env` file:
-    ```ini
-    OPENAI_API_KEY=sk-...
-    GEMINI_API_KEY=AIza...
+    git add .
+    git commit -m "Initial commit"
+    git push origin main
     ```
 
-4.  Run the app:
-    ```bash
-    streamlit run app.py
-    ```
+2.  **Deploy**:
+    *   Go to [share.streamlit.io](https://share.streamlit.io).
+    *   Select your repository.
 
-## Deployment to Streamlit Community Cloud (Recommended)
+3.  **Configure Secrets (CRITICAL)**:
+    *   In the deployed app settings, go to **Advanced Settings** -> **Secrets**.
+    *   Add your keys:
+        ```toml
+        OPENAI_API_KEY = "sk-..."
+        GEMINI_API_KEY = "AIza..."
+        ```
+    *   *Streamlit Cloud will automatically handle the system dependencies via `packages.txt`.*
 
-This app is optimized for Streamlit Cloud.
+---
 
-1.  Push this code to a **GitHub Repository**.
-2.  Go to [share.streamlit.io](https://share.streamlit.io/).
-3.  Click **New App** and select your repository.
-4.  **CRITICAL**: Before deploying, click **Advanced Settings** -> **Secrets**.
-5.  Add your API keys in TOML format:
-    ```toml
-    OPENAI_API_KEY = "sk-..."
-    GEMINI_API_KEY = "AIza..."
-    ```
-6.  Click **Deploy**.
+## 🔄 Updates
 
-## Requirements
-- Access to camera/microphone.
-- Modern browser (Chrome/Edge recommended).
+### v2.0 - Hybrid Architecture
+- **Refactor**: Split responsibilities between Gemini (Analysis) and OpenAI (Talk).
+- **Vision**: Added video file upload for body language analysis.
+- **Security**: Added support for Streamlit Secrets.
+
+<div align="center">
+
+**Current Model: Gemini 2.5 Flash + GPT-4o**
+
+</div>
