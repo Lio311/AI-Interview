@@ -48,27 +48,18 @@ def main():
     <style>
         .stApp { margin-top: -50px; }
         section[data-testid="stSidebar"] { display: none; } 
-        .stVideo { margin: 0 auto; display: block; } /* Center video */
+        /* Center video and limit size */
         div[data-testid="stVerticalBlock"] > div:has(div.stVideo) { display: flex; justify-content: center; }
+        video { 
+            width: 400px !important; 
+            height: auto !important; 
+            border-radius: 10px;
+        }
     </style>
     """, unsafe_allow_html=True)
     
-    os.makedirs("temp_recordings", exist_ok=True)
-    
-    init_session_state()
-    setup_ai_clients()
-    
-    phase = st.session_state.interview_phase
-
-    # 1. SETUP PHASE (No Camera)
-    if phase == "setup":
-        render_setup_panel()
-        return
-
-    # 2. PROMINENT TOP-CENTER CAMERA (For all other phases)
-    st.markdown("<h2 style='text-align: center;'>📹 Interview Cam</h2>", unsafe_allow_html=True)
-    
     # Persistent Streamer
+    # We use a key that doesn't change to keep connection alive
     ctx = webrtc_streamer(
         key="persistent-cam",
         mode=WebRtcMode.SENDRECV,
@@ -79,6 +70,10 @@ def main():
         video_frame_callback=video_frame_callback,
         audio_frame_callback=audio_frame_callback,
         async_processing=True,
+        video_html_attrs={
+            "style": {"width": "400px", "margin": "0 auto", "border-radius": "10px"},
+            "muted": True  # Fixes the echo issue!
+        }
     )
     
     # Center Layout container for controls below camera
@@ -88,6 +83,7 @@ def main():
         if phase == "camera_check":
             render_camera_check(ctx)
         elif phase == "recording":
+            # Pass ctx to recording phase
             render_recording_phase(ctx)
         elif phase == "feedback":
             render_feedback_phase(ctx)
@@ -168,30 +164,35 @@ def render_recording_phase(ctx):
         st.audio(st.session_state[q_audio_key], autoplay=True)
 
     # Auto-Recording Logic
-    # We check if camera is playing. If so, and we are in 'ready_to_start' state, we START.
     if ctx.state.playing:
         if st.session_state.get('q_active_state') == 'ready_to_start':
-             # Generate filenames
+             # Start Manager
              base_filename = f"temp_recordings/q_{q_idx}_{int(time.time())}"
              vid_path = f"{base_filename}.mp4"
              aud_path = f"{base_filename}.wav"
              final_path = f"{base_filename}_merged.mp4"
              
-             # Start Manager
              manager.start_recording(vid_path, aud_path, final_path)
              st.session_state.current_recording = {"video": vid_path, "audio": aud_path, "final": final_path}
+             
+             # ADVANCE STATE
              st.session_state.q_active_state = 'recording'
-             st.rerun() # Rerun to update UI to "Stop" button
+             st.rerun() 
              
         elif st.session_state.get('q_active_state') == 'recording':
-            st.error("🔴 Recording... Speak now!")
-            if st.button("⏹️ Stop Recording & JSON Report", type="primary", use_container_width=True):
-                manager.stop_recording()
-                st.session_state.q_active_state = 'finished'
-                if q_idx not in st.session_state.recordings: st.session_state.recordings[q_idx] = []
-                st.session_state.recordings[q_idx].append(st.session_state.current_recording)
-                st.session_state.interview_phase = "feedback"
-                st.rerun()
+            st.error("🔴 Recording in progress... (Speak clearly!)")
+            
+            # Use columns to center the button
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                if st.button("⏹️ Stop Recording & JSON Report", type="primary", use_container_width=True, key=f"stop_btn_{q_idx}"):
+                    manager.stop_recording()
+                    st.session_state.q_active_state = 'finished'
+                    if q_idx not in st.session_state.recordings: 
+                        st.session_state.recordings[q_idx] = []
+                    st.session_state.recordings[q_idx].append(st.session_state.current_recording)
+                    st.session_state.interview_phase = "feedback"
+                    st.rerun()
     else:
         st.warning("Camera disconnected. Please reconnect.")
 
