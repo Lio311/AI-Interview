@@ -51,8 +51,20 @@ def transcribe_audio(audio_path):
     except Exception as e:
         return f"Error transcribing: {e}"
 
+def call_gemini_fallback(inputs, generation_config=None):
+    """Attempts to use Gemini 2.5, falls back to 1.5-Flash on failure."""
+    try:
+        model = genai.GenerativeModel("gemini-2.5-flash-preview-09-2025")
+        return model.generate_content(inputs, generation_config=generation_config)
+    except Exception as e:
+        print(f"Gemini 2.5 Error: {e}. Falling back to 1.5.")
+        try:
+             model_fallback = genai.GenerativeModel("gemini-1.5-flash")
+             return model_fallback.generate_content(inputs, generation_config=generation_config)
+        except Exception as e2:
+             raise e2
+
 def generate_interview_questions(cv_text, job_description):
-    model = genai.GenerativeModel("gemini-2.5-flash-preview-09-2025")
     prompt = f"""
     You are an expert technical interviewer.
     Based on the following Candidate CV and Job Description, generate 5 distinct, challenging, role-specific interview questions.
@@ -68,7 +80,7 @@ def generate_interview_questions(cv_text, job_description):
     Do not include markdown formatting like ```json.
     """
     try:
-        response = model.generate_content(prompt)
+        response = call_gemini_fallback(prompt)
         import json
         text = response.text.strip()
         if text.startswith("```json"):
@@ -81,8 +93,6 @@ def generate_interview_questions(cv_text, job_description):
         return []
 
 def analyze_answer_with_gemini(transcript, cv_text, job_desc, question, video_path=None):
-    model = genai.GenerativeModel("gemini-2.5-flash-preview-09-2025")
-    
     # Upload video if provided
     video_file = None
     if video_path and os.path.exists(video_path):
@@ -130,7 +140,7 @@ def analyze_answer_with_gemini(transcript, cv_text, job_desc, question, video_pa
         inputs.append("Please analyze the visual body language from the video as well.")
         
     try:
-        response = model.generate_content(inputs)
+        response = call_gemini_fallback(inputs)
         import json
         text = response.text.strip()
         text = text.replace("```json", "").replace("```", "")
@@ -174,8 +184,6 @@ def generate_coach_response_with_gpt(analysis_json, transcript, question):
         return f"Error generating feedback: {e}"
 
 def generate_session_report_with_gemini(transcripts, analyses):
-    model = genai.GenerativeModel("gemini-2.5-flash-preview-09-2025")
-    
     data_str = ""
     for k, v in transcripts.items():
         data_str += f"Q: {k}\nTranscript: {v}\nAnalysis: {analyses.get(k)}\n---\n"
@@ -193,7 +201,7 @@ def generate_session_report_with_gemini(transcripts, analyses):
     No emojis. Professional formatting.
     """
     try:
-        response = model.generate_content(prompt)
+        response = call_gemini_fallback(prompt)
         return response.text
     except Exception as e:
         return f"Report generation error: {e}"
